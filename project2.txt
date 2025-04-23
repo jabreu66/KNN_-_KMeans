@@ -26,8 +26,8 @@ This project is about studying data classification and clustering. It follows th
     Comment on the relationships (10 pts.)
 
 4.	Implement the modified K-means method and apply this method to each of the wine quality datasets with the number of classes varying from 5 to 15 and report the final number 
-
     of classes returned by your implemented method and the normalized mutual information value with the given groundtruth for each of the two datasets (20 pts.).
+    
 5.	Are the clustering accuracy values between the two datasets in Q4 consistent? Why? (10 pts.)
 
 6.	Apply your implemented classification method to adult dataset using the given training set for training the model and evaluate the method using the given test set. 

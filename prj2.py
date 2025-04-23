@@ -44,7 +44,7 @@ numeric_columns = ['age', 'fnlwgt', 'education-num', 'capital-gain', 'capital-lo
 print(cleaned_training.columns)
 
 cleaned_training[numeric_columns] = cleaned_training[numeric_columns].apply(pd.to_numeric, errors = 'raise')
-
+cleaned_test[numeric_columns] = cleaned_test[numeric_columns].apply(pd.to_numeric, errors='raise')
 
 categories = ['workclass', 'education', 'marital-status', 'occupation', 'relationship', 'race', 'sex', 'native-country']
 
@@ -97,7 +97,9 @@ class KNN:
 
 def zscore(training: pd.DataFrame, testing: pd.DataFrame):
     mean = training.mean()
-    std_dev = training.std().replace(0, 1) # Replace 0 std_dev with 1 just in case, we don't want to divide by 0
+
+    # Replace 0 std_dev with 1 just in case, we don't want to divide by 0
+    std_dev = training.std().replace(0, 1) 
     return (training - mean) / std_dev, (testing - mean) / std_dev
 
 def split_acc(dataframe: pd.DataFrame, pct_training: int, rng: random.Random):
@@ -177,7 +179,7 @@ def merge_closest(C: np.ndarray):
     new_centroid = np.vstack([new_merged, C[unchanged]])
     return new_centroid, unchanged, (i, j)
 
-def modified_kmeans(X: np.ndarray, Y: np.ndarray, rng: random.Random, k_max: int = 15, k_min: int = 5, min_size: int = 20):
+def modified_kmeans(X: np.ndarray, Y: np.ndarray, rng: random.Random, k_max: int = 15, k_min: int = 5, min_size: int = 35):
     labels, C = k_means(X, k_max, rng)
     k = k_max
     while k > k_min:
@@ -261,7 +263,8 @@ test_for_X = test_for_X.drop(columns = columns_for_income)
 
 
 adult_clf = KNN()
-adult_clf.getgroup(train_for_X, train_for_Y)
-adult_acc = adult_clf.evaluate(test_for_X, test_for_Y)
+normalized_train_for_X, normalized_test_for_X = zscore(train_for_X, test_for_X)
+adult_clf.getgroup(normalized_train_for_X, train_for_Y)
+adult_acc = adult_clf.evaluate(normalized_test_for_X, test_for_Y)
 
 print(f"Classifying on Adult Dataset, Adult (>50 & <= 50k accuracy) = {adult_acc:.4f} ")
