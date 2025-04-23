@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 import random
 from collections import Counter
-from scipy.stats import entropy
 from sklearn.metrics import normalized_mutual_info_score as nmi
 from pathlib import Path
 
@@ -169,16 +168,6 @@ def k_means(X: np.ndarray, k: int, rng: random.Random, iteration: int = 300, tol
             break
     return labels, num_centroids
 
-def merge_closest(C: np.ndarray):
-    k = len(C)
-    distance_matrix = KNN.squared_distance(C, C)
-    np.fill_diagonal(distance_matrix, np.inf)
-    i, j = np.unravel_index(distance_matrix.argmin(), distance_matrix.shape)
-    unchanged = [c for c in range(k) if c not in (i, j)]
-    new_merged = (C[i] + C[j]) / 2.0
-    new_centroid = np.vstack([new_merged, C[unchanged]])
-    return new_centroid, unchanged, (i, j)
-
 def modified_kmeans(X: np.ndarray, Y: np.ndarray, rng: random.Random, k_max: int = 15, k_min: int = 5, min_size: int = 35):
     labels, C = k_means(X, k_max, rng)
     k = k_max
@@ -251,8 +240,7 @@ test_for_X = numerical_test_data.drop(columns = "income").copy()
 # Get true labels
 train_for_Y = (cleaned_training['income'] == '>50K').astype(int)
 test_for_Y = (cleaned_test['income'] == '>50K').astype(int)
-#print(cleaned_training['income'].unique())   
-#print(train_for_Y.unique(), len(train_for_Y))  
+
 test_for_X = test_for_X.reindex(columns=train_for_X.columns, fill_value=0)
 
 
