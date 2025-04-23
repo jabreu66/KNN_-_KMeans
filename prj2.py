@@ -29,6 +29,8 @@ cleaned_test = test_data.dropna()
 # Get rid of any whitespace that we may have
 cleaned_training = cleaned_training.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
 cleaned_test = cleaned_test.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
+cleaned_test['income'] = cleaned_test['income'].str.rstrip('.')
+
 
 print("\nCleaned Values for Training Data")
 print(cleaned_training.isnull().sum())
@@ -44,7 +46,7 @@ print(cleaned_training.columns)
 cleaned_training[numeric_columns] = cleaned_training[numeric_columns].apply(pd.to_numeric, errors = 'raise')
 
 
-categories = ['workclass', 'education', 'marital-status', 'occupation', 'relationship', 'race', 'sex', 'native-country', 'income']
+categories = ['workclass', 'education', 'marital-status', 'occupation', 'relationship', 'race', 'sex', 'native-country']
 
 numerical_training_data = pd.get_dummies(cleaned_training, columns = categories)
 numerical_test_data = pd.get_dummies(cleaned_test, columns = categories)
@@ -238,3 +240,28 @@ if __name__ == "__main__":
     print(f"  Red‑wine  : final k = {k_red:2d},  NMI = {nmi_red:.3f}")
     print(f"  White‑wine: final k = {k_white:2d},  NMI = {nmi_white:.3f}")
 
+
+#6 
+
+train_for_X = numerical_training_data.drop(columns = "income").copy()
+test_for_X = numerical_test_data.drop(columns = "income").copy()
+
+# Get true labels
+train_for_Y = (cleaned_training['income'] == '>50K').astype(int)
+test_for_Y = (cleaned_test['income'] == '>50K').astype(int)
+#print(cleaned_training['income'].unique())   
+#print(train_for_Y.unique(), len(train_for_Y))  
+test_for_X = test_for_X.reindex(columns=train_for_X.columns, fill_value=0)
+
+
+# Drop dummy columns
+columns_for_income = [col for col in train_for_X if col.startswith('income_')]
+train_for_X = train_for_X.drop(columns = columns_for_income)
+test_for_X = test_for_X.drop(columns = columns_for_income)
+
+
+adult_clf = KNN()
+adult_clf.getgroup(train_for_X, train_for_Y)
+adult_acc = adult_clf.evaluate(test_for_X, test_for_Y)
+
+print(f"Classifying on Adult Dataset, Adult (>50 & <= 50k accuracy) = {adult_acc:.4f} ")
