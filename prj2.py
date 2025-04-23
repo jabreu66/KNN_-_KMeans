@@ -73,22 +73,30 @@ class KNN:
 
     @staticmethod
     def squared_distance(D1: np.ndarray, D2: np.ndarray) -> np.ndarray:
-        new_D1 = (D1 * D1).sum(axis = 1).reshape(-1, 1) # Get squared matrix, collapse each row, turn into column vec
-        new_D2 = (D2 * D2).sum(axis = 1).reshape(1, -1) # Turn into row vec
+        # Get squared matrix, collapse each row, turn into column vec
+        new_D1 = (D1 * D1).sum(axis = 1).reshape(-1, 1) 
+
+        # Turn into row vec
+        new_D2 = (D2 * D2).sum(axis = 1).reshape(1, -1) 
         new_dist = new_D1 + new_D2 - 2.0 * (D1 @ D2.T)
         return new_dist
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
+        # Check if we ran getGroups first, otherwise we dont have centroids
         if self.centroids is None:
             raise RuntimeError("Fit needs to be called before we can make a prediction.")
         
         np_X = X.to_numpy()
         distances = self.squared_distance(np_X, self.centroids)
+
+        # Look for column w/smallest distance
         index = distances.argmin(axis = 1)
         return self.classes[index]
 
     def evaluate(self, X: pd.DataFrame, Y: pd.Series) -> float:
         predictions = self.predict(X)
+        # Get correct predictions then return that as a num b/w 0-1
+
         correct = (predictions == Y.to_numpy()).sum()
         return correct / len(Y)
 
@@ -146,17 +154,19 @@ def run_all_splits(path: Path, splits = (20, 60, 90), seed = 42, n_runs = 5):
 
 #4
 
-def k_means(X: np.ndarray, k: int, rng: random.Random, iteration: int = 300, tol: float = 1e-4):
+def k_means(X: np.ndarray, k: int, rng: random.Random, iteration: int = 300, min_move_amount: float = 1e-4):
     n, d = X.shape
+
+    # Initialize centroids
     num_centroids = X[rng.sample(range(n), k), :]
 
     for _ in range (iteration):
+        # Calc the distance from every pt. to every centroid
         labels = KNN.squared_distance(X, num_centroids).argmin(axis = 1)
         new_centroids = []
         for c in range(k):
             members = X[labels == c]
             if len(members) == 0:
-                # simple fix: reinitialize to a random point
                 new_centroids.append(X[rng.randrange(n)])
             else:
                 new_centroids.append(members.mean(axis=0))
@@ -164,7 +174,7 @@ def k_means(X: np.ndarray, k: int, rng: random.Random, iteration: int = 300, tol
 
         shift = np.linalg.norm(new_centroids - num_centroids)
         num_centroids = new_centroids
-        if shift < tol:
+        if shift < min_move_amount:
             break
     return labels, num_centroids
 
@@ -175,10 +185,11 @@ def modified_kmeans(X: np.ndarray, Y: np.ndarray, rng: random.Random, k_max: int
         counts = Counter(labels)
         small = [c for c, sz in counts.items() if sz < min_size]
 
+        # Check if cluster is too small based on min size we set
         if not small:
-            break                    # all clusters big enough
+            break    
 
-        # pick the tiniest cluster and its nearest neighbour
+        # Pick the smallest cluster and nearest neighbor
         c_small = min(small, key=counts.get)
         dists   = KNN.squared_distance(C[c_small:c_small+1], C).ravel()
         dists[c_small] = np.inf
@@ -187,14 +198,14 @@ def modified_kmeans(X: np.ndarray, Y: np.ndarray, rng: random.Random, k_max: int
         c1 = C[c_small].copy()
         c2 = C[c_merge].copy()
 
-        # delete them from C
+        # Delete c_small and merge from C
         C = np.delete(C, [c_small, c_merge], axis=0)
 
-        # now append their midpoint
+        # Append midpoint
         C = np.vstack([C, (c1 + c2) / 2.0])
         k -= 1
 
-        # rerun k‑means with fresh centroids
+        # Run again w/ new centroids
         labels, C = k_means(X, k, rng, iteration=50)
 
     nmi_val = nmi(Y, labels, average_method = "arithmetic")
@@ -206,7 +217,7 @@ def run_modified_kmeans(path: Path, seed: int = 0):
     y   = df['quality'].to_numpy()
 
     rng = random.Random(seed)
-    np.random.seed(seed)           # keep NumPy and std‑lib in sync
+    np.random.seed(seed)           
 
     labels, C, k_final, nmi_val = modified_kmeans(X, y, rng)
     return k_final, nmi_val
@@ -214,22 +225,23 @@ def run_modified_kmeans(path: Path, seed: int = 0):
 
 
 if __name__ == "__main__":
-    red_file   = Path("winequality-red.csv")
-    white_file = Path("winequality-white.csv")
+    # Read from files
+    red_wine_file   = Path("winequality-red.csv")
+    white_wine_file = Path("winequality-white.csv")
 
-    red_acc   = run_all_splits(red_file)
-    white_acc = run_all_splits(white_file)
+    red_acc   = run_all_splits(red_wine_file)
+    white_acc = run_all_splits(white_wine_file)
 
-    print("Nearest‑Centroid Accuracy (average of 5 random splits)\n")
+    print("KNN Accuracy: \n")
     print("  Red‑wine  :", red_acc)
     print("  White‑wine:", white_acc)
 
-    print("\nModified k‑means results (k_max = 15, k_min = 5):")
-    k_red,  nmi_red  = run_modified_kmeans(red_file,  seed=42)
-    k_white,nmi_white= run_modified_kmeans(white_file,seed=42)
+    print("\nResults for modified k-means (k_max = 15, k_min = 5):")
+    k_red,  nmi_red  = run_modified_kmeans(red_wine_file,  seed= 42)
+    k_white,nmi_white = run_modified_kmeans(white_wine_file,seed = 42)
 
-    print(f"  Red‑wine  : final k = {k_red:2d},  NMI = {nmi_red:.3f}")
-    print(f"  White‑wine: final k = {k_white:2d},  NMI = {nmi_white:.3f}")
+    print(f"  Red‑wine  : final number for k = {k_red:2d},  NMI Value = {nmi_red:.3f}")
+    print(f"  White‑wine: final number for k = {k_white:2d},  NMI Value = {nmi_white:.3f}")
 
 
 #6 
